@@ -1,9 +1,12 @@
 const express = require('express');
 const fs = require('fs/promises');
 const app = express();
+const path = require('path');
+const crypto = require('crypto');
+
 require('dotenv').config()
 const port = process.env.PORT || 3000
-
+const TASKS_FILE_PATH = path.join(__dirname, 'task.json');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -13,7 +16,7 @@ app.get('/tasks', async (req, res) => {
     const completed = req.query.completed;   
 
     try {
-        const fileData = await fs.readFile('./task.json', 'utf-8');
+        const fileData = await fs.readFile(TASKS_FILE_PATH, 'utf-8');
         let data = JSON.parse(fileData);
         let tasks = data.tasks;
 
@@ -69,7 +72,7 @@ app.get('/tasks/:id', async (req, res) => {
         });
     }
     try {
-        let fileData = await fs.readFile('./task.json', 'utf-8');
+        let fileData = await fs.readFile(TASKS_FILE_PATH, 'utf-8');
         let data = JSON.parse(fileData);
         let task = data.tasks.find((task) => task.id === id);
         if (task) {
@@ -95,14 +98,14 @@ app.delete('/tasks/:id', async (req, res) => {
         });
     }
     try {
-        let fileData = await fs.readFile('./task.json', 'utf-8');
+        let fileData = await fs.readFile(TASKS_FILE_PATH, 'utf-8');
         let data = JSON.parse(fileData);
         let task = data.tasks.find((task) => task.id === id);
         if (task) {
             let updatedTask = data.tasks.filter((task) => task.id !== id);
             data.tasks = updatedTask;
             try {
-                await fs.writeFile('./task.json', JSON.stringify(data, null, 2))
+                await fs.writeFile(TASKS_FILE_PATH, JSON.stringify(data, null, 2))
                 res.status(200).json({ msg: "Task deleted succfully" })
             } catch (error) {
                 console.log(error);
@@ -123,25 +126,24 @@ app.post('/tasks', async (req, res) => {
         const { title, description, completed, priority } = req.body;
         let createdAt = new Date().toISOString()
 
-        if (!title || !description || completed === undefined || typeof completed !== 'boolean') {
+        if (!title || !description || completed === undefined || priority === undefined  || typeof completed !== 'boolean') {
             return res.status(400).json({
                 msg: "title, description, priority and completed are required fields (completed must be boolean)"
             });
         }
 
-        const fileData = await fs.readFile('./task.json', 'utf-8');
+        const fileData = await fs.readFile(TASKS_FILE_PATH, 'utf-8');
         const data = JSON.parse(fileData);
 
         const tasks = data.tasks || [];
-
-        const id = tasks.length > 0 ? tasks[tasks.length - 1].id + 1 : 1;
+        const id = crypto.randomUUID();
 
         const task = { id, title, description, completed, priority, createdAt };
 
         tasks.push(task);
         data.tasks = tasks;
 
-        await fs.writeFile('./task.json', JSON.stringify(data, null, 2));
+        await fs.writeFile(TASKS_FILE_PATH, JSON.stringify(data, null, 2));
 
         res.status(201).json({
             tasks: data.tasks,
@@ -167,7 +169,7 @@ app.put('/tasks/:id', async (req, res) => {
     }
 
     try {
-        const fileData = await fs.readFile('./task.json', 'utf-8');
+        const fileData = await fs.readFile(TASKS_FILE_PATH, 'utf-8');
         const data = JSON.parse(fileData);
 
         const tasks = data.tasks || [];
@@ -181,7 +183,6 @@ app.put('/tasks/:id', async (req, res) => {
         }
 
         const { title, description, completed, priority } = req.body;
-         let createdAt = new Date().toISOString()
 
         if (!title || !description || completed === undefined || typeof completed !== 'boolean') {
             return res.status(400).json({
@@ -200,7 +201,7 @@ app.put('/tasks/:id', async (req, res) => {
 
         data.tasks = tasks;
 
-        await fs.writeFile('./task.json', JSON.stringify(data, null, 2));
+        await fs.writeFile(TASKS_FILE_PATH, JSON.stringify(data, null, 2));
 
         return res.status(200).json(tasks[index]);
 
